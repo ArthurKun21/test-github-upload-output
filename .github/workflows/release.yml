@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare build
+        run: |
+          timestamp=$(date '+%Y-%m-%d')
+          echo "TIME_STAMP=$timestamp" >> $GITHUB_ENV
+
+      - name: Zip directory
+        run: |
+          zip -r output.zip output
+          sha=`sha256sum output.zip | awk '{ print $1 }'`
+          echo "OUTPUT_SHA=$sha" >> $GITHUB_ENV
+    
+      - name: Create release
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
+        with:
+          tag_name: r${{ env.TIME_STAMP }}
+          name: Output-${{ env.TIME_STAMP }}
+          body: |
+            ### Checksums
+
+            | Variant | SHA-256 |
+            | ------- | ------- |
+            | Output.zip | ${{ env.OUTPUT_SHA }}
+          files: |
+            output.zip
+      - name: Prune old releases
+        uses: dev-drprasad/delete-older-releases@dfbe6be2a006e9475dfcbe5b8d201f1824c2a9fe # v0.3.4
+        if: ${{ env.commit_count_diff > 0 }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          keep_latest: 5
+          delete_tags: true
